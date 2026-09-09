@@ -1,0 +1,494 @@
+.section ".text"
+
+main:
+    lw   $s0, MMIO_ADDR($zero) // s0-> pantalla
+    lb   $s1, pos_x($zero)   //s1->pos_x
+    lb   $s2, pos_y($zero)   // s2-> pos_y
+    
+    lw   $a1, ptr_cuerpo_x($zero) // a1 -> ptr_cuerpo_x
+    lw   $a2, ptr_cuerpo_y($zero) // a2 -> ptr_cuerpo_y
+    sbx  $a1, $zero, $s1 //guardo pos_x en arreglo[0]
+    sbx  $a2, $zero, $s2 //guardo pos_y en arreglo[0]
+    
+    addi $s5, $zero, 12345 // guardo en s5 la semilla inicial
+    addi $t5, $zero, 0  //guardo en t5 0
+    
+generar_aleatorio:
+    addi $t1, $zero, 65 //guardo 65 en t1 
+    addi $t2, $zero, 15 //guardo 15 en t1
+    
+    mul  $s5, $s5, $t1 // semilla*65 guardo en semilla
+    addi $s5, $s5, 1 //le sumo uno a la semilla
+    restu $s3, $s5, $t2 // guardo el modulo de semilla y 15 en s3
+    
+    //lo mismo de antes para obtener coordenada en y
+    mul  $s5, $s5, $t1
+    addi $s5, $s5, 1
+    restu $s4, $s5, $t2
+    
+    
+    lw   $a1, ptr_cuerpo_x($zero) // a1 <-ptr_cuerpo_x
+    lw   $a2, ptr_cuerpo_y($zero) // a2 <- ptr_cuerpo_y
+    lw   $t1, tamano($zero) //t1 <- tamano
+    addi $t2, $zero, 0 // guardo 0 en t2
+    
+loop_check_manzana:
+    beq  $t2, $t1, dibujar_manzana //si t2 llego a tamano dibujo la manzana
+    
+    lbx  $a1, $t2, $t3
+    lbx  $a2, $t2, $t4
+    
+    bne  $s3, $t3, siguiente_check_m //si son distintos ya en la coordenada x sigo buscando
+    beq  $s4, $t4, generar_aleatorio //son iguales en las dos coordenadas a buscar otra para no generar sobre la serpiente
+    
+siguiente_check_m:
+    addi $t2, $t2, 1 //crezco t2 y sigo el loop
+    j    loop_check_manzana
+
+dibujar_manzana:
+    addi $a0, $zero, str_home //guardo en a0 str_home
+    
+bucle_home:
+    lb   $t1, 0($a0) //cargo un byte de str_home en t1
+    beq  $t1, $zero, fin_home_m //si llego al terminador voy a fin
+    sb   $t1, 0($s0) //mando el byte a la pantalla
+    addi $a0, $a0, 1 //me muevo un byte en str
+    j    bucle_home //sigo bucle
+    
+fin_home_m:
+    add  $t1, $zero, $s4 //Pongo t1 la coordenada y de la manzana
+    
+loop_bajar_m:
+    beq  $t1, $zero, fin_bajar_m //si llego a 0 termine de bajar
+    addi $a0, $zero, str_s  // en a0 ahora str_s
+    
+bucle_print_s:
+    lb   $t0, 0($a0) //guardo en t0 el byte de str
+    beq  $t0, $zero, fin_print_s //si llego al terminador termine
+    sb   $t0, 0($s0) //mando a la pantalla el byte de t0
+    addi $a0, $a0, 1 //me muevo 1
+    j    bucle_print_s
+    
+fin_print_s:
+    addi $t1, $t1, -1 //ya me quedo uno menos por bajar
+    j    loop_bajar_m
+    
+fin_bajar_m:
+    add  $t1, $zero, $s3  //ahora me muevo en x a la derecha 
+        
+loop_derecha_m:
+    beq  $t1, $zero, fin_derecha_m //si llegue fin
+    addi $a0, $zero, str_d  //guarodo en a0 es str
+      
+bucle_print_d:
+    lb   $t0, 0($a0) //guardo en t0 el byte
+    beq  $t0, $zero, fin_print_d //si llegue a terminador fin
+    sb   $t0, 0($s0) //mando a la pantalla el byte
+    addi $a0, $a0, 1 //sumo un byte
+    j    bucle_print_d
+    
+fin_print_d:
+    addi $t1, $t1, -1 //uno menos por moverme
+    j    loop_derecha_m
+    
+fin_derecha_m:
+    addi $t0, $zero, 64  //escribo el arroba       
+    sb   $t0, 0($s0) // lo mando
+    
+volver_cursor:
+    addi $a0, $zero, str_home //guardo home en a0
+    
+bucle_home_c:
+    lb   $t1, 0($a0) //guardo un byte en t0
+    beq  $t1, $zero, fin_home_c //si llegue a terminador fin
+    sb   $t1, 0($s0) //mando el byte a pantalla
+    addi $a0, $a0, 1 //avanzo un byte
+    j    bucle_home_c 
+    
+fin_home_c:
+    add  $t1, $zero, $s2 //ahora me muevo en y
+    
+loop_bajar_c:
+    beq  $t1, $zero, fin_bajar_c //si llegue a 0 termine
+    addi $a0, $zero, str_s   //guardo el str en a0
+       
+bucle_print_c:
+    lb   $t0, 0($a0) //leo byte
+    beq  $t0, $zero, fin_print_c //si leo terminador listo
+    sb   $t0, 0($s0) //mando a pantalla
+    addi $a0, $a0, 1 //avanzo un byte
+    j    bucle_print_c
+    
+fin_print_c:
+    addi $t1, $t1, -1 //uno menos para bajar
+    j    loop_bajar_c
+    
+fin_bajar_c:
+    add  $t1, $zero, $s1  //ahora a moverme en x
+         
+loop_derecha_c:
+    beq  $t1, $zero, fin_derecha_c //si llego a 0 listo
+    addi $a0, $zero, str_d  //guardo str_d
+      
+bucle_print_dc:
+    lb   $t0, 0($a0) //leo un byte
+    beq  $t0, $zero, fin_print_dc //si llego a termiandor listo
+    sb   $t0, 0($s0) //mando a pantalla
+    addi $a0, $a0, 1 //me muevo un byte
+    j    bucle_print_dc
+     
+fin_print_dc:
+    addi $t1, $t1, -1 //uno menos para moverme
+    j    loop_derecha_c
+    
+fin_derecha_c:
+    addi $t0, $zero, 42         
+    sb   $t0, 0($s0) //nuevo asterisco
+    addi $t1, $zero, 8
+    sb   $t1, 0($s0) //backspace
+    
+    addi $t1, $zero, 1
+    beq  $t5, $t1, pre_delay_w //si tengo 1 voy a 2
+    addi $t1, $zero, 2
+    beq  $t5, $t1, pre_delay_s //si tengo 2 a s
+    addi $t1, $zero, 3
+    beq  $t5, $t1, pre_delay_a //si tengo 3 a a
+    addi $t1, $zero, 4  
+    beq  $t5, $t1, pre_delay_d //si tengo 4 a d
+    
+    j    loop_principal
+    
+loop_principal:
+    addi $s5, $s5, 1 // voy sumadno 1 a la semilla par amoverla
+    lb   $t2, 0($s0) //cargo en t2 si recibo algo del serial
+    beq  $t2, $zero, loop_principal //si no recibo nada loop
+
+    addi $t3, $zero, 119
+    beq  $t2, $t3, mover_w //recibe una w
+
+    addi $t3, $zero, 115
+    beq  $t2, $t3, mover_s //recibe una s
+
+    addi $t3, $zero, 97
+    beq  $t2, $t3, mover_a //recibe una a
+
+    addi $t3, $zero, 100
+    beq  $t2, $t3, mover_d //recibe una d
+
+    j  loop_principal //recibi otra letra a seguir el loop
+
+mover_w:
+    addi $t1, $zero, -1 //guardo -1 en t1
+    addi $s2, $s2, -1 //me muevo en y -1
+    beq  $s2, $t1, fin //si llego a -1 en y perdi
+    addi $t5, $zero, 1 //guardo 1 en t5 porque estoy en w
+    j    procesar_cola_y_cuerpo //a moverme
+
+dibujar_cabeza_w:
+    addi $t1, $zero, 42
+    sb   $t1, 0($s0) //asterisco
+    addi $t1, $zero, 8
+    sb   $t1, 0($s0) //backspace
+
+pre_delay_w:
+    lw   $t1, delay($zero) //inicializo delay en t1
+delay_w:
+    addi $t1, $t1, -1 //moviendo el delay
+    bne  $t1, $zero, delay_w
+
+    lb   $t2, 0($s0) //guardo en t2 loq ue leo de la pantalla
+    beq  $t2, $zero, mover_w //no leo nada a seguir en w
+
+    addi $t3, $zero, 97
+    beq  $t2, $t3, mover_a //lei a moverme en a
+
+    addi $t3, $zero, 100
+    beq  $t2, $t3, mover_d //Lei d a moverme en d
+    
+    j    mover_w //no paso nada a moverme en w
+
+mover_s:
+    addi $t1, $zero, 15 //guardo 15 
+    addi $s2, $s2, 1 //sumo 1 en y
+    beq  $s2, $t1, fin //si llegue a 15 en y perdi
+    addi $t5, $zero, 2 // estoy en s guardo 2
+    j    procesar_cola_y_cuerpo
+
+dibujar_cabeza_s:
+    addi $t1, $zero, 42
+    sb   $t1, 0($s0) //asterisco
+    addi $t1, $zero, 8
+    sb   $t1, 0($s0) //backspace
+
+pre_delay_s:
+    lw   $t1, delay($zero) //delay
+delay_s:
+    addi $t1, $t1, -1
+    bne  $t1, $zero, delay_s
+
+    lb   $t2, 0($s0)
+    beq  $t2, $zero, mover_s
+
+    addi $t3, $zero, 97
+    beq  $t2, $t3, mover_a
+
+    addi $t3, $zero, 100
+    beq  $t2, $t3, mover_d
+    
+    j    mover_s
+
+mover_a:
+    addi $t1, $zero, -1 //guardo -1 en t1
+    addi $s1, $s1, -1 //me muevo -1 en x
+    beq  $s1, $t1, fin //si llegue a -1 fin
+    addi $t5, $zero, 3 //3 porque me muevo en a
+    j    procesar_cola_y_cuerpo
+
+dibujar_cabeza_a:
+    addi $t1, $zero, 42
+    sb   $t1, 0($s0) //asterisco
+    addi $t1, $zero, 8
+    sb   $t1, 0($s0) //backspace
+
+pre_delay_a:
+    lw   $t1, delay($zero)
+delay_a:
+    addi $t1, $t1, -1
+    bne  $t1, $zero, delay_a
+
+    lb   $t2, 0($s0)
+    beq  $t2, $zero, mover_a
+
+    addi $t3, $zero, 119
+    beq  $t2, $t3, mover_w
+
+    addi $t3, $zero, 115
+    beq  $t2, $t3, mover_s
+
+    j    mover_a
+
+mover_d:
+    addi $t1, $zero, 15 //guardo 15 en t1
+    addi $s1, $s1, 1 // avanzo 1 en x
+    beq  $s1, $t1, fin //si llegue a 15 fin
+    addi $t5, $zero, 4 // 4 porque en d
+    j    procesar_cola_y_cuerpo
+
+dibujar_cabeza_d:
+    addi $t1, $zero, 42
+    sb   $t1, 0($s0) //asterisco
+    addi $t1, $zero, 8
+    sb   $t1, 0($s0) //backspace
+
+pre_delay_d:
+    lw   $t1, delay($zero)
+delay_d:   
+    addi $t1, $t1, -1
+    bne  $t1, $zero, delay_d
+
+    lb   $t2, 0($s0)
+    beq  $t2, $zero, mover_d
+
+    addi $t3, $zero, 119
+    beq  $t2, $t3, mover_w
+
+    addi $t3, $zero, 115
+    beq  $t2, $t3, mover_s
+    
+    j    mover_d
+
+
+procesar_cola_y_cuerpo:
+    
+    lw $a1, ptr_cuerpo_x($zero) // a1 <- ptr_cuerpo_x
+    lw $a2, ptr_cuerpo_y($zero) // a2 <- ptr_cuerpo_y
+    lw $t1, tamano($zero) //en t1 guardo tamano
+    addi $t2, $zero, 1 // guardo en t2 1
+    
+loop_autocolision:
+    beq $t2, $t1, check_manzana_flujo //si t1 es igual a tamano ya chequee todo
+    
+    lbx $a1, $t2, $t3 //guardo en t3 la pos en x a comparar
+    lbx $a2, $t2, $t4 //guardo en t4 la pos en y a comparar
+    
+    bne $s1, $t3, sig_eslabon //si no coincide con la pos actual en x a comparar otra
+    beq $s2, $t4, fin //coinciden pos x e y perdi
+
+sig_eslabon:
+    addi $t2, $t2, 1 //avanzo uno en t2 para moverme 1 en el arreglo
+    j loop_autocolision 
+    
+check_manzana_flujo:
+    bne  $s1, $s3, borrar_cola_flujo //distinto a manzana borro cola
+    bne  $s2, $s4, borrar_cola_flujo //distinto a manzana borro cola
+    
+    //comio manzana
+    lw   $t1, tamano($zero) //guardo tamano en t1
+    addi $t1, $t1, 1 //sumo 1 a tamano
+    sw   $t1, tamano($zero) //guardo en memoria tamano+1
+    j    shift_cuerpo //a shift directo no borro cola porque manzana hace crecer
+     
+borrar_cola_flujo:
+    lw   $a1, ptr_cuerpo_x($zero) //a1 <- ptr_cuerpo_x
+    lw   $a2, ptr_cuerpo_y($zero) //a2 <- ptr_cuerpo_y
+    lw   $t1, tamano($zero) //t1 <- tamano
+    addi $t1, $t1, -1 //le resto 1 a tamano (porque tam-1 es la pos en arreglo de la cola)
+    
+    lbx  $a1, $t1, $t2 // guardo en t2 la pos en x
+    lbx  $a2, $t1, $t3 //guardo en t3 la pos en y
+        
+    addi $a0, $zero, str_home //guardo str_home en a0
+bucle_home_b:
+    lb   $t1, 0($a0) //leo un byte de a0 en t1
+    beq  $t1, $zero, fin_home_b //si llego a terminador fin
+    sb   $t1, 0($s0) //mando a pantalla byte
+    addi $a0, $a0, 1 // avanzo un byte
+    j    bucle_home_b 
+    
+fin_home_b:
+    add  $t1, $zero, $t3 //me muevo en y ahora
+    
+loop_bajar_b:
+    beq  $t1, $zero, fin_bajar_b //si llegue a 0 listo
+    addi $a0, $zero, str_s  //guardo str_s
+    
+bucle_print_sb:
+    lb   $t0, 0($a0)
+    beq  $t0, $zero, fin_print_sb
+    sb   $t0, 0($s0)
+    addi $a0, $a0, 1
+    j    bucle_print_sb
+fin_print_sb:
+    addi $t1, $t1, -1
+    j    loop_bajar_b
+    
+fin_bajar_b:
+    add  $t1, $zero, $t2 //ahora me muevo en x
+        
+loop_derecha_b:
+    beq  $t1, $zero, fin_derecha_b
+    addi $a0, $zero, str_d  
+      
+bucle_print_db:
+    lb   $t0, 0($a0)
+    beq  $t0, $zero, fin_print_db
+    sb   $t0, 0($s0)
+    addi $a0, $a0, 1
+    j    bucle_print_db
+    
+fin_print_db:
+    addi $t1, $t1, -1
+    j    loop_derecha_b
+    
+fin_derecha_b:
+    addi $t0, $zero, 32  //espacio en blanco
+    sb   $t0, 0($s0)
+    addi $t0, $zero, 8  //backspace
+    sb   $t0, 0($s0)
+   
+volver_cursor_f:
+    addi $a0, $zero, str_home //ahora volver a home
+    
+bucle_home_f:
+    lb   $t1, 0($a0)
+    beq  $t1, $zero, fin_home_f
+    sb   $t1, 0($s0)
+    addi $a0, $a0, 1
+    j    bucle_home_f
+    
+fin_home_f:
+    add  $t1, $zero, $s2 //ahora volver a y
+    
+loop_bajar_f:
+    beq  $t1, $zero, fin_bajar_f
+    addi $a0, $zero, str_s    
+       
+bucle_print_f:
+    lb   $t0, 0($a0)
+    beq  $t0, $zero, fin_print_f
+    sb   $t0, 0($s0)
+    addi $a0, $a0, 1
+    j    bucle_print_f
+    
+fin_print_f:
+    addi $t1, $t1, -1
+    j    loop_bajar_f
+    
+fin_bajar_f:
+    add  $t1, $zero, $s1 //ahora volver a x
+         
+loop_derecha_f:
+    beq  $t1, $zero, fin_derecha_f
+    addi $a0, $zero, str_d  
+      
+bucle_print_fc:
+    lb   $t0, 0($a0)
+    beq  $t0, $zero, fin_print_fc
+    sb   $t0, 0($s0)
+    addi $a0, $a0, 1
+    j    bucle_print_fc
+    
+fin_print_fc:
+    addi $t1, $t1, -1
+    j    loop_derecha_f
+    
+fin_derecha_f:
+    j    shift_cuerpo
+    
+shift_cuerpo:
+    lw   $a1, ptr_cuerpo_x($zero) // a1 <- ptr_x
+    lw   $a2, ptr_cuerpo_y($zero) // a2 <- ptr_y
+    lw   $t1, tamano($zero) //t1 tam
+    addi $t1, $t1, -1 //tam-1 en t1 que es el final del arreglo
+    
+bucle_shift:
+    beq  $t1, $zero, fin_shift //si ya pase por todo el arreglo fin
+    addi $t2, $t1, -1 //guardo pos anteriro a final en t2
+    
+    //en x
+    lbx  $a1,$t2, $t3 //en t3 guardo valor de pos anterior a final
+    sbx  $a1,$t1, $t3 //muevo al final lo que habi aantes del final
+    
+    //en y lo mismo
+    lbx  $a2, $t2, $t3 
+    sbx  $a2, $t1, $t3
+    
+    //voy bajando de pos del arreglo
+    addi $t1, $t1, -1
+    j    bucle_shift
+    
+fin_shift:
+    sbx  $a1, $zero, $s1 //guardo al inicio la nueva cabeza
+    sbx  $a2, $zero, $s2 //guardo al inicio la nueva cabeza
+    
+    bne  $s1, $s3, volver_a_letra //si no estoy en manzana a volver a la letra
+    beq  $s2, $s4, generar_aleatorio // si estoy en manzana a generar otra
+    
+volver_a_letra:
+    addi $t1, $zero, 1
+    beq  $t5, $t1, dibujar_cabeza_w
+    addi $t1, $zero, 2
+    beq  $t5, $t1, dibujar_cabeza_s
+    addi $t1, $zero, 3
+    beq  $t5, $t1, dibujar_cabeza_a
+    addi $t1, $zero, 4
+    beq  $t5, $t1, dibujar_cabeza_d
+    
+fin:
+    trap 1
+
+.section ".data"
+MMIO_ADDR:    .word 0xFFFFFF00
+delay:        .word 2000
+tamano:       .word 1
+ptr_cuerpo_x: .ptr cuerpo_x
+ptr_cuerpo_y: .ptr cuerpo_y
+cuerpo_x:     .pad 256
+cuerpo_y:     .pad 256
+pos_x:        .byte 0
+pos_y:        .byte 0
+str_home:     .asciiz "\x1b[H"
+str_w:        .asciiz "\x1b[A"
+str_s:        .asciiz "\x1b[B"
+str_a:        .asciiz "\x1b[D"
+str_d:        .asciiz "\x1b[C"
